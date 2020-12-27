@@ -117,10 +117,19 @@ def post_drink(jwt):
 def get_specific_drink(jwt, drink_id):
     try:
         data = request.get_json()
-        drink = Drink.query.filter_by(id=drink_id).one_or_none()
-        drink.title = data['title']
-        drink.recipe = json.dumps(data['recipe'])
-        drink.update()
+        drink = Drink.query.filter(Drink.id == drink_id).one_or_none()
+
+        if not drink:
+            abort(404)
+
+        try:
+            if data['title']:
+                drink.title = data['title']
+            if data.get('recipe'):
+                drink.recipe = json.dumps(data.get('recipe'))
+            drink.update()
+        except BaseException:
+            abort(400)
     except BaseException:
         abort(400)
     return jsonify({
