@@ -16,7 +16,7 @@ CORS(app)
 !! NOTE THIS WILL DROP ALL RECORDS AND START YOUR DB FROM SCRATCH
 !! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
 '''
-db_drop_and_create_all()
+#db_drop_and_create_all()
 
 ## ROUTES
 '''
@@ -28,7 +28,9 @@ db_drop_and_create_all()
         or appropriate status code indicating reason for failure
 '''
 @app.route("/drinks", methods=['GET'])
-def get_all_drinks(drink_id):
+def get_all_drinks():
+    drinks = Drink.query.all()
+    print(drinks)
     return "Get all drinks"
 
 '''
