@@ -170,7 +170,8 @@ def post_drink():
         drink.insert()
     except BaseException:
         abort(400)
-    return jsonify({'success': True, 'drinks': [drink.long()]})
+    return jsonify({'success': True, 'drinks': [drink.long()]
+    }), 200
 
 '''
 @TODO implement endpoint
@@ -183,10 +184,14 @@ def post_drink():
     returns status code 200 and json {"success": True, "drinks": drink} where drink an array containing only the updated drink
         or appropriate status code indicating reason for failure
 '''
-@app.route("/drinks/<int:drink_id>", methods=['GET'])
+@app.route("/drinks/<int:drink_id>", methods=['PATCH'])
 def get_specific_drink(drink_id):
     try:
+        data = request.get_json()
         drink = Drink.query.filter_by(id=drink_id).one_or_none()
+        drink.title = data['title']
+        drink.recipe = json.dumps(data['recipe'])
+        drink.update()
     except BaseException:
         abort(400)
     return jsonify({
@@ -206,7 +211,14 @@ def get_specific_drink(drink_id):
 '''
 @app.route("/drinks/<int:drink_id>", methods=['DELETE'])
 def get_drink(drink_id):
-    return "Delete drink"
+    try:
+        drink = Drink.query.filter_by(id=drink_id).one_or_none()
+        drink.delete()
+    except BaseException:
+        abort(400)
+    return jsonify({
+        'success': True,
+    }), 200
 
 ## Error Handling
 '''
