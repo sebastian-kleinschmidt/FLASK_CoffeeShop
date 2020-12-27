@@ -18,6 +18,107 @@ CORS(app)
 '''
 #db_drop_and_create_all()
 
+'''
+def get_token_auth_header():
+    """Obtains the Access Token from the Authorization Header
+    """
+    auth = request.headers.get('Authorization', None)
+    if not auth:
+        raise AuthError({
+            'code': 'authorization_header_missing',
+            'description': 'Authorization header is expected.'
+        }, 401)
+
+    parts = auth.split()
+    if parts[0].lower() != 'bearer':
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Authorization header must start with "Bearer".'
+        }, 401)
+
+    elif len(parts) == 1:
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Token not found.'
+        }, 401)
+
+    elif len(parts) > 2:
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Authorization header must be bearer token.'
+        }, 401)
+
+    token = parts[1]
+    return token
+
+
+def verify_decode_jwt(token):
+    jsonurl = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
+    jwks = json.loads(jsonurl.read())
+    unverified_header = jwt.get_unverified_header(token)
+    rsa_key = {}
+    if 'kid' not in unverified_header:
+        raise AuthError({
+            'code': 'invalid_header',
+            'description': 'Authorization malformed.'
+        }, 401)
+
+    for key in jwks['keys']:
+        if key['kid'] == unverified_header['kid']:
+            rsa_key = {
+                'kty': key['kty'],
+                'kid': key['kid'],
+                'use': key['use'],
+                'n': key['n'],
+                'e': key['e']
+            }
+    if rsa_key:
+        try:
+            payload = jwt.decode(
+                token,
+                rsa_key,
+                algorithms=ALGORITHMS,
+                audience=API_AUDIENCE,
+                issuer='https://' + AUTH0_DOMAIN + '/'
+            )
+
+            return payload
+
+        except jwt.ExpiredSignatureError:
+            raise AuthError({
+                'code': 'token_expired',
+                'description': 'Token expired.'
+            }, 401)
+
+        except jwt.JWTClaimsError:
+            raise AuthError({
+                'code': 'invalid_claims',
+                'description': 'Incorrect claims. Please, check the audience and issuer.'
+            }, 401)
+        except Exception:
+            raise AuthError({
+                'code': 'invalid_header',
+                'description': 'Unable to parse authentication token.'
+            }, 400)
+    raise AuthError({
+                'code': 'invalid_header',
+                'description': 'Unable to find the appropriate key.'
+            }, 400)
+
+
+def requires_auth(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        token = get_token_auth_header()
+        try:
+            payload = verify_decode_jwt(token)
+        except:
+            abort(401)
+        return f(payload, *args, **kwargs)
+
+    return wrapper
+'''
+
 ## ROUTES
 '''
 @TODO implement endpoint
@@ -30,8 +131,10 @@ CORS(app)
 @app.route("/drinks", methods=['GET'])
 def get_all_drinks():
     drinks = Drink.query.all()
-    print(drinks)
-    return "Get all drinks"
+    return jsonify({
+        'success': True,
+        'drinks': [drink.short() for drink in drinks]
+    }), 200
 
 '''
 @TODO implement endpoint
@@ -43,8 +146,10 @@ def get_all_drinks():
 '''
 @app.route("/drinks-detail", methods=['GET'])
 def get_drink_details():
-    return "drinks-detail"
-
+    drinks = Drink.query.all()
+    return jsonify({
+        'success': True,
+        'drinks': [drink.long() for drink in drinks]})
 
 '''
 @TODO implement endpoint
@@ -57,7 +162,15 @@ def get_drink_details():
 '''
 @app.route("/drinks", methods=['POST'])
 def post_drink():
-    return "Post drink"
+    try:
+        data = request.get_json()
+        drink = Drink()
+        drink.title = data['title']
+        drink.recipe = json.dumps(data['recipe'])
+        drink.insert()
+    except BaseException:
+        abort(400)
+    return jsonify({'success': True, 'drinks': [drink.long()]})
 
 '''
 @TODO implement endpoint
@@ -72,7 +185,14 @@ def post_drink():
 '''
 @app.route("/drinks/<int:drink_id>", methods=['GET'])
 def get_specific_drink(drink_id):
-    return "Get specific drink"
+    try:
+        drink = Drink.query.filter_by(id=drink_id).one_or_none()
+    except BaseException:
+        abort(400)
+    return jsonify({
+        'success': True,
+        'drinks': [drink.long()]
+    }), 200
 
 '''
 @TODO implement endpoint
